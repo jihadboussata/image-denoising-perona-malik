@@ -1,0 +1,11 @@
+{
+  "initial_l2": 0.0729193285019388,
+  "final_l2_pm": 0.040610753712504,
+  "final_l2_heat": 0.2024799804349645,
+  "best_pm_step": 15,
+  "best_heat_step": 1,
+  "best_l2_pm": 0.0271652917076255,
+  "best_l2_heat": 0.0363820837124477,
+  "max_mass_drift_pm": 8.992806499463768e-15,
+  "max_mass_drift_heat": 5.6066262743570405e-15
+}

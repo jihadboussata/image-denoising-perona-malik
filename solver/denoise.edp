@@ -1,0 +1,50 @@
+// Parameters n, steps, dt, kappa, constantCase are supplied by scripts/run.py.
+// P1 intensities; cellwise P0 lagged diffusivity; natural no-flux boundary.
+mesh Th = square(n,n);
+fespace Vh(Th,P1);
+fespace Dh(Th,P0);
+Vh clean, pm, oldpm, heat, oldheat, v;
+Dh conductivity;
+func phantom = 0.12
+  + 0.75/(1+exp(40*(sqrt((x-0.35)^2+(y-0.62)^2)-0.18)))
+  + 0.60/(1+exp(40*(sqrt(((x-0.68)/0.16)^2+((y-0.38)/0.10)^2)-1)));
+// Frequencies are resolved by the default 80x80 mesh.
+func noise = 0.14*sin(18*pi*x)*sin(22*pi*y)+0.06*cos(26*pi*x+14*pi*y);
+if (constantCase) { clean=0.7; oldpm=0.7; }
+else { clean=phantom; oldpm=phantom+noise; }
+oldheat=oldpm; pm=oldpm; heat=oldheat;
+problem PM(pm,v,solver=UMFPACK) = int2d(Th)(pm*v)
+  + int2d(Th)(dt*conductivity*(dx(pm)*dx(v)+dy(pm)*dy(v)))
+  - int2d(Th)(oldpm*v);
+problem Heat(heat,v,solver=UMFPACK) = int2d(Th)(heat*v)
+  + int2d(Th)(dt*(dx(heat)*dx(v)+dy(heat)*dy(v)))
+  - int2d(Th)(oldheat*v);
+ofstream history("history.csv"); history.precision(16);
+history << "step,time,l2_pm,l2_heat,mass_pm,mass_heat,h1_pm,h1_heat" << endl;
+real initialError=sqrt(int2d(Th)((oldpm-clean)^2));
+real initialMass=int2d(Th)(oldpm);
+real initialEnergy=sqrt(int2d(Th)(dx(oldpm)^2+dy(oldpm)^2));
+history << 0 << "," << 0 << "," << initialError << "," << initialError << ","
+  << initialMass << "," << initialMass << "," << initialEnergy << "," << initialEnergy << endl;
+ofstream initial("initial.csv"); initial.precision(16);
+initial << "x,y,clean,noisy" << endl;
+for(int i=0;i<Th.nv;i++) {
+  real xx=Th(i).x, yy=Th(i).y;
+  initial << xx << "," << yy << "," << clean(xx,yy) << "," << oldpm(xx,yy) << endl;
+}
+for(int step=1;step<=steps;step++) {
+  conductivity=1/(1+(dx(oldpm)^2+dy(oldpm)^2)/(kappa*kappa));
+  PM; Heat;
+  history << step << "," << step*dt << ","
+    << sqrt(int2d(Th)((pm-clean)^2)) << "," << sqrt(int2d(Th)((heat-clean)^2)) << ","
+    << int2d(Th)(pm) << "," << int2d(Th)(heat) << ","
+    << sqrt(int2d(Th)(dx(pm)^2+dy(pm)^2)) << ","
+    << sqrt(int2d(Th)(dx(heat)^2+dy(heat)^2)) << endl;
+  oldpm=pm; oldheat=heat;
+}
+ofstream fields("final.csv"); fields.precision(16);
+fields << "x,y,perona_malik,heat" << endl;
+for(int i=0;i<Th.nv;i++) {
+  real xx=Th(i).x, yy=Th(i).y;
+  fields << xx << "," << yy << "," << pm(xx,yy) << "," << heat(xx,yy) << endl;
+}
